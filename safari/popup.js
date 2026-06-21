@@ -6,7 +6,7 @@
 // (Firefox/Safari) so `await chrome.*` works; on Chrome `browser` is undefined → native chrome.* (already promise-based in MV3).
 if (typeof browser !== 'undefined' && browser.runtime) { try { globalThis.chrome = browser; } catch (e) {} }
 
-const VERSION = '1.10.9';
+const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.15';
 const ALL_TAB = 'all'; // virtual tab showing all sections
 const MAX_INACTIVE_DAYS = 30;
 
@@ -51,6 +51,9 @@ const SVG = {
   edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
   del:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>',
   drag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  starOff: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  refresh: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
 };
 
 // ── Tab icons ──
@@ -684,6 +687,7 @@ function renderAllSections() {
         + '<span class="section-title">'+esc(sec.title)+'</span>'
         + '<span class="all-tab-label">'+esc(tab.title)+'</span>'
         + '<button class="section-count" data-sec-id="'+sec.id+'" title="'+t('open_all_links')+'">'+lnks.length+'</button>'
+        + (canEdit?'<button class="section-check" data-sec-id="'+sec.id+'" title="'+t('check_links')+'">'+SVG.refresh+'</button>':'')
         + '</div>'
         + lnks.map(l=>linkHtml({...l, sectionId:sec.id}, canEdit, canDel)).join('')
         + '</div>';
@@ -691,6 +695,7 @@ function renderAllSections() {
   }
   content.innerHTML = has ? html : '<div class="empty-tab"><div class="empty-icon">'+iconSvg('inbox')+'</div><p>'+t('no_links')+'</p></div>';
   bindLinks(content, null);
+  wireSectionChecks(content);
   content.querySelectorAll('.section-count[data-sec-id]').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -746,12 +751,14 @@ function renderTabContent(tabId) {
       sectionIconHtml(sec.icon)+
       '<span class="section-title">'+esc(sec.title)+'</span>'+
       '<button class="section-count" data-sec-id="'+sec.id+'" title="'+t('open_all_links')+'">'+lnks.length+'</button>'+
+      (canEdit?'<button class="section-check" data-sec-id="'+sec.id+'" title="'+t('check_links')+'">'+SVG.refresh+'</button>':'')+
       '</div>'+
       lnks.map(l=>linkHtml({...l, sectionId:sec.id}, canEdit, canDel)).join('')+'</div>';
   }
   content.innerHTML = has ? html :
     '<div class="empty-tab"><div class="empty-icon">'+iconSvg('inbox')+'</div><p>'+t('no_links')+'</p></div>';
   bindLinks(content, tabId);
+  wireSectionChecks(content);
 
   // Section count: open all links
   content.querySelectorAll('.section-count[data-sec-id]').forEach(btn => {
@@ -1041,6 +1048,7 @@ function linkHtml(link, canEdit, canDel, hi='') {
     (link.description?'<div class="link-desc">'+desc+'</div>':'')+
     tags+
     '</div><div class="link-actions">'+
+    '<button class="link-action-btn fav-btn'+(link.is_favorite?' is-fav':'')+'" data-id="'+link.id+'" title="'+t('favorite')+'" aria-pressed="'+(link.is_favorite?'true':'false')+'">'+(link.is_favorite?SVG.star:SVG.starOff)+'</button>'+
     (canEdit?'<button class="link-action-btn edit-btn" data-id="'+link.id+'">'+SVG.edit+'</button>':'')+
     (canDel?'<button class="link-action-btn del" data-id="'+link.id+'">'+SVG.del+'</button>':'')+
     '<button class="link-action-btn open-btn">'+SVG.open+'</button>'+
@@ -1126,8 +1134,58 @@ function bindLinks(container, tabId) {
       const link=S.allLinks.find(l=>l.id===id);
       deleteLink(id, link?.tabId ?? tabId);
     });
+    el.querySelector('.fav-btn')?.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      toggleFavorite(parseInt(el.dataset.id), parseInt(el.dataset.sec), e.currentTarget);
+    });
   });
   resolveFavicons(container);
+}
+
+// A: toggle a link's favorite state (needs only read permission server-side).
+async function toggleFavorite(id, sid, btn){
+  const inLinks = (S.links && S.links[sid]) ? S.links[sid].find(l=>l.id===id) : null;
+  const inAll   = Array.isArray(S.allLinks) ? S.allLinks.find(l=>l.id===id) : null;
+  const want = !((inLinks||inAll||{}).is_favorite);
+  if(btn) btn.disabled = true;
+  try {
+    await apiFetch(want?'POST':'DELETE', '/links/'+id+'/favorite');
+    if(inLinks) inLinks.is_favorite = want;
+    if(inAll)   inAll.is_favorite   = want;
+    if(btn){
+      btn.classList.toggle('is-fav', want);
+      btn.setAttribute('aria-pressed', want?'true':'false');
+      btn.innerHTML = want?SVG.star:SVG.starOff;
+    }
+  } catch {}
+  finally { if(btn) btn.disabled = false; }
+}
+
+// D: trigger a server-side health check for a section (needs edit permission),
+// then refresh that section's links and re-render the status dots.
+async function runHealthCheck(sid, btn){
+  if(btn){ btn.disabled = true; btn.innerHTML = spin(); }
+  try {
+    await apiPost('/sections/'+sid+'/links/check');
+    const fresh = await apiGet('/sections/'+sid+'/links');
+    const map = new Map((fresh||[]).map(l=>[l.id,l]));
+    const apply = l => { const f=map.get(l.id); if(f){ l.health_status=f.health_status; l.health_code=f.health_code; l.health_checked_at=f.health_checked_at; } return l; };
+    if(S.links && S.links[sid]) S.links[sid] = S.links[sid].map(apply);
+    if(Array.isArray(S.allLinks)) S.allLinks.forEach(l=>{ if(map.has(l.id)) apply(l); });
+    renderAll();
+  } catch {
+    if(btn){ btn.disabled = false; btn.innerHTML = SVG.refresh; }
+  }
+}
+
+// Wire the per-section "check links" buttons within a rendered container.
+function wireSectionChecks(container){
+  container.querySelectorAll('.section-check[data-sec-id]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      runHealthCheck(parseInt(btn.dataset.secId), btn);
+    });
+  });
 }
 
 // ── Drag & Drop — pointer events with capture (works in Extension popups) ──
@@ -1395,8 +1453,26 @@ async function openSettings() {
   if($('s-bm-parent')) await loadBmFolders();
   updateSaveBtn(); loadCacheInfo();
   showScreen('settings');
+  loadPortalInfo(); // I: portal version + features (non-blocking)
 }
 
+// I: show the portal version (and feature flags) in the settings version bar.
+async function loadPortalInfo(){
+  const el = $('s-portal-version'); if(!el) return;
+  if(!(S.baseUrl && S.token && S.username)) { el.textContent = ''; return; }
+  try {
+    const v = await apiGet('/version');
+    let txt = v?.version ? (t('portal_version')+': '+v.version) : '';
+    try {
+      const f = await apiGet('/features');
+      const flags = [];
+      if(f && f.api_enabled) flags.push('API');
+      if(f && f.plugin_auto_config_enabled) flags.push('Auto-Config');
+      if(flags.length) txt += ' · '+flags.join(', ');
+    } catch {}
+    el.textContent = txt;
+  } catch { el.textContent = ''; }
+}
 async function closeSettings(){
   setSettingsOpen(false);
   if(S.baseUrl && S.token) {

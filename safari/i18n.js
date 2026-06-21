@@ -1,6 +1,7 @@
 /* LinkPortal Extension — i18n.js v1.4.0 */
 const I18N = {
   de: {
+    favorite:'Favorit', check_links:'Links prüfen', checking:'Prüfe…', check_done:'Geprüft', portal_version:'Portal-Version',
     brand:'LinkPortal', version:'Version',
     search_placeholder:'Links durchsuchen…',
     loading:'Links werden geladen…', loading_tab:'Lade Tab',
@@ -93,6 +94,7 @@ const I18N = {
     err_title_required:'Titel ist ein Pflichtfeld',
   },
   en: {
+    favorite:'Favorite', check_links:'Check links', checking:'Checking…', check_done:'Checked', portal_version:'Portal version',
     brand:'LinkPortal', version:'Version',
     search_placeholder:'Search links…',
     loading:'Loading links…', loading_tab:'Loading tab',
@@ -178,6 +180,7 @@ const I18N = {
     err_url_required:'URL is required', err_title_required:'Title is required',
   },
   es: {
+    favorite:'Favorito', check_links:'Comprobar enlaces', checking:'Comprobando…', check_done:'Comprobado', portal_version:'Versión del portal',
     brand:'LinkPortal', version:'Versión',
     search_placeholder:'Buscar enlaces…',
     loading:'Cargando enlaces…', loading_tab:'Cargando pestaña',

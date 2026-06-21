@@ -443,3 +443,13 @@ mark{background:rgba(78,127,242,0.25);color:var(--accent);border-radius:2px;padd
 .all-tab-label{font-size:9.5px;font-weight:600;color:var(--accent);background:rgba(78,127,242,0.12);
   padding:1px 6px;border-radius:8px;margin-left:auto;white-space:nowrap;flex-shrink:0}
 .all-tab-label+.section-count{margin-left:6px}
+
+/* A: favorite star active state */
+.link-action-btn.fav-btn.is-fav{color:#d29922}
+.link-action-btn.fav-btn.is-fav:hover{color:#e3b341}
+/* D: per-section health-check button (mirrors .section-count) */
+.section-check{font-size:10px;color:var(--text-dim);background:transparent;border:none;
+  cursor:pointer;padding:2px 4px;border-radius:5px;display:inline-flex;align-items:center;margin-left:4px}
+.section-check:hover{background:rgba(78,127,242,0.2);color:var(--accent)}
+.section-check svg{width:12px;height:12px}
+.section-check .lp-spin svg{width:12px;height:12px}

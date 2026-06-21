@@ -16,3 +16,4 @@ build/
 safari/xcode-wrapper/build/
 *.xcuserstate
 DerivedData/
+version.sh

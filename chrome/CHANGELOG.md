@@ -3,6 +3,33 @@
 Alle nennenswerten Änderungen an der LinkPortal Browser-Extension (Chrome & Safari).
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/); Versionierung nach [SemVer](https://semver.org/).
 
+## [1.10.15] — 2026-06-21
+
+### Changed
+- **Versions-Routine `version.sh`.** Hebt/prüft die Version konsistent über chrome/firefox/safari (gezielt: Manifeste, Popup-Platzhalter, popup.js-Fallback, README), spiegelt die geteilten Dateien und validiert Manifest-Gleichheit, Datei-Identität und JS-Syntax. Die angezeigte Version stammt seit 1.10.14 ohnehin aus dem Manifest; damit ist für Firefox und Safari dasselbe sichergestellt wie für Chrome.
+
+## [1.10.14] — 2026-06-21
+
+### Fixed
+- **Angezeigte Versionsnummer war fest auf 1.10.9.** Die Version im Popup (Menü und Einstellungen) wird jetzt direkt aus dem Manifest gelesen (`chrome.runtime.getManifest().version`) und stimmt damit immer mit der tatsächlichen Version überein.
+
+## [1.10.13] — 2026-06-21
+
+### Added
+- **Favoriten direkt umschalten (A).** Jede Link-Zeile hat einen Stern-Button; Klick setzt/entfernt den Favoriten über `POST`/`DELETE /api/links/{id}/favorite` (nur Leserecht nötig). Der Status wird sofort in der Oberfläche aktualisiert.
+- **Health-Check auslösen (D).** Sektionen mit Bearbeitungsrecht erhalten im Kopf einen Aktualisieren-Button, der `POST /api/sections/{id}/links/check` ausführt und anschließend die Status-Punkte der Sektion neu lädt. (Die Anzeige der Punkte kam in 1.10.12.)
+- **Portal-Version & Funktionen (I).** Der Einstellungs-Dialog zeigt unten die Portal-Version (`GET /api/version`) und aktive Funktionen (`GET /api/features`: API, Auto-Config).
+
+## [1.10.12] — 2026-06-21
+
+### Fixed
+- **Portal-Titel ohne Admin-Rechte.** Der nicht benötigte Aufruf des Admin-Endpunkts `/api/admin/app-settings` wurde entfernt; der Titel wird allein aus der Portal-Startseite (`<title>`) gelesen. Behebt einen 403-Request bei jedem Öffnen für Nicht-Admins.
+- **Favicons über das Portal statt Google.** Ohne hinterlegtes Logo werden Favicons jetzt über den Portal-Proxy `/api/favicon` (mit SSRF-Schutz/Cache) geladen, statt den Browser direkt `google.com/s2/favicons` abfragen zu lassen (Datenschutz). Schlägt der Abruf fehl, bleiben die Initialen sichtbar.
+- **`open_mode` der Links wird beachtet.** Links mit `open_mode='self'` ersetzen den aktuellen Tab; alle anderen öffnen wie bisher einen neuen Tab. Gilt auch für Favoriten-/Tag-Widget-Links.
+
+### Added
+- **Health-Status-Anzeige.** Geprüfte Links zeigen einen farbigen Punkt (grün = ok, gelb = down, rot = error) inkl. HTTP-Code als Tooltip. Die Daten kamen bereits mit, wurden aber nicht dargestellt.
+
 ## [1.10.11] — 2026-06-20
 
 ### Fixed

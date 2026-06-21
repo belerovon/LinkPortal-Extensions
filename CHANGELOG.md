@@ -3,6 +3,23 @@
 Alle nennenswerten Änderungen an der LinkPortal Browser-Extension (Chrome & Safari).
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/); Versionierung nach [SemVer](https://semver.org/).
 
+## [1.10.15] — 2026-06-21
+
+### Changed
+- **Versions-Routine `version.sh`.** Hebt/prüft die Version konsistent über chrome/firefox/safari (gezielt: Manifeste, Popup-Platzhalter, popup.js-Fallback, README), spiegelt die geteilten Dateien und validiert Manifest-Gleichheit, Datei-Identität und JS-Syntax. Die angezeigte Version stammt seit 1.10.14 ohnehin aus dem Manifest; damit ist für Firefox und Safari dasselbe sichergestellt wie für Chrome.
+
+## [1.10.14] — 2026-06-21
+
+### Fixed
+- **Angezeigte Versionsnummer war fest auf 1.10.9.** Die Version im Popup (Menü und Einstellungen) wird jetzt direkt aus dem Manifest gelesen (`chrome.runtime.getManifest().version`) und stimmt damit immer mit der tatsächlichen Version überein.
+
+## [1.10.13] — 2026-06-21
+
+### Added
+- **Favoriten direkt umschalten (A).** Jede Link-Zeile hat einen Stern-Button; Klick setzt/entfernt den Favoriten über `POST`/`DELETE /api/links/{id}/favorite` (nur Leserecht nötig). Der Status wird sofort in der Oberfläche aktualisiert.
+- **Health-Check auslösen (D).** Sektionen mit Bearbeitungsrecht erhalten im Kopf einen Aktualisieren-Button, der `POST /api/sections/{id}/links/check` ausführt und anschließend die Status-Punkte der Sektion neu lädt. (Die Anzeige der Punkte kam in 1.10.12.)
+- **Portal-Version & Funktionen (I).** Der Einstellungs-Dialog zeigt unten die Portal-Version (`GET /api/version`) und aktive Funktionen (`GET /api/features`: API, Auto-Config).
+
 ## [1.10.12] — 2026-06-21
 
 ### Fixed
