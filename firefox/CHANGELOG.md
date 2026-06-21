@@ -3,6 +3,11 @@
 Alle nennenswerten Änderungen an der LinkPortal Browser-Extension (Chrome & Safari).
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/); Versionierung nach [SemVer](https://semver.org/).
 
+## [1.10.16] — 2026-06-21
+
+### Fixed
+- **Lesezeichen-Sync in die Lesezeichenleiste (Direkt-Modus).** Wurde die Lesezeichenleiste als Ziel gewählt und ohne eigenen Unterordner gespiegelt, landeten die Einträge fälschlich unter „Andere Lesezeichen“. Ursache: Der gewählte Zielordner wurde über `chrome.bookmarks.get(id)` geprüft, was für die Firefox-Wurzel-IDs (`toolbar_____`/`unfiled_____`) fehlschlagen kann — der Code fiel dann still auf „Andere Lesezeichen“ zurück. Der Zielordner wird jetzt robust per Baum-Durchlauf verifiziert (inkl. Wurzelordner), in Popup und Service Worker. Auch der „Neuer Ordner“-Pfad nutzt nun die robuste Wurzel-Auflösung statt Index.
+
 ## [1.10.15] — 2026-06-21
 
 ### Changed

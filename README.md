@@ -12,7 +12,7 @@ LinkPortal-Extension/
 ```
 
 Die Dateien `popup.html/.css/.js`, `i18n.js`, `icons.js` und `icons/` sind in allen drei
-Unterordnern identisch. **Version: 1.10.15**
+Unterordnern identisch. **Version: 1.10.16**
 
 ## Versionspflege
 

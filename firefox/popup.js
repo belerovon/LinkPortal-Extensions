@@ -6,7 +6,7 @@
 // (Firefox/Safari) so `await chrome.*` works; on Chrome `browser` is undefined → native chrome.* (already promise-based in MV3).
 if (typeof browser !== 'undefined' && browser.runtime) { try { globalThis.chrome = browser; } catch (e) {} }
 
-const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.15';
+const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.16';
 const ALL_TAB = 'all'; // virtual tab showing all sections
 const MAX_INACTIVE_DAYS = 30;
 
@@ -1664,12 +1664,21 @@ function bmPickRoot(roots, pref){
   if(pref === 'other') return byId('unfiled_____') || byId('2') || roots[1] || roots[0];
   return null;
 }
+// Does a folder with this id exist anywhere in the tree? (Robust for root ids like
+// 'toolbar_____'/'unfiled_____', where chrome.bookmarks.get(rootId) can throw in Firefox
+// and previously caused a silent fallback to "Other Bookmarks".)
+function bmFolderExists(tree, id){
+  let found = false;
+  const walk = n => { for(const c of (n.children || [])){ if(found) return; if(c.id === id && !c.url){ found = true; return; } walk(c); } };
+  if(tree && tree[0]) walk(tree[0]);
+  return found;
+}
 async function bmParentIdLocal(pref){
   try{
     const tree = await chrome.bookmarks.getTree();
     const roots = (tree[0] && tree[0].children) || [];
     if(pref==='bar' || pref==='other'){ const r = bmPickRoot(roots, pref); return r ? r.id : undefined; }
-    if(pref){ try{ const n=await chrome.bookmarks.get(pref); if(n&&n[0]&&!n[0].url) return pref; }catch{} }
+    if(pref && bmFolderExists(tree, pref)) return pref;   // chosen folder (incl. roots) verified via tree
   }catch{}
   return undefined;
 }
@@ -2027,7 +2036,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     const sel = $('s-bm-parent');
     let parentId = sel?.value;
     if(parentId === 'bar' || parentId === 'other'){   // resolve legacy keyword to a real root id
-      try { const tree = await chrome.bookmarks.getTree(); const roots = tree[0].children || []; parentId = (parentId === 'bar' ? roots[0] : roots[1])?.id; } catch {}
+      try { const tree = await chrome.bookmarks.getTree(); const roots = tree[0].children || []; parentId = bmPickRoot(roots, parentId)?.id; } catch {}
     }
     try {
       const folder = await chrome.bookmarks.create(parentId ? { parentId, title:name } : { title:name });

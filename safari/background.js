@@ -207,7 +207,12 @@ async function bmParentId(pref){
     if (pref === 'bar')   { const r = pick('toolbar_____') || pick('1') || roots[0];             return r ? r.id : undefined; }
     if (pref === 'other') { const r = pick('unfiled_____') || pick('2') || roots[1] || roots[0]; return r ? r.id : undefined; }
     if (pref) {                                             // explicit folder id chosen by the user
-      try { const n = await chrome.bookmarks.get(pref); if (n && n[0] && !n[0].url) return pref; } catch {}
+      // Verify by walking the tree (robust for root ids, where bookmarks.get(rootId)
+      // can throw in Firefox and caused a silent fallback to "Other Bookmarks").
+      let found = false;
+      const walk = n => { for (const c of (n.children || [])) { if (found) return; if (c.id === pref && !c.url) { found = true; return; } walk(c); } };
+      if (tree[0]) walk(tree[0]);
+      if (found) return pref;
       // chosen folder was deleted → fall through to the default parent
     }
   } catch {}
