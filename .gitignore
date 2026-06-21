@@ -1,0 +1,18 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Node / Tooling
+node_modules/
+
+# Build-Artefakte / Pakete
+dist/
+build/
+*.zip
+
+# Safari / Xcode (lokale Build-Ausgaben)
+safari/xcode-wrapper/build/
+*.xcuserstate
+DerivedData/
