@@ -30,3 +30,7 @@ Die Routine setzt nur gezielt das `version`-Feld der drei `manifest.json`, die P
 die Fallback-Konstante in `popup.js` und die `Version:`-Zeile dieser README; SVG-Koordinaten o. Ä.
 werden nicht berührt. Außerdem spiegelt sie die geteilten Dateien aus `chrome/` nach `firefox/`
 und `safari/` und prüft Manifest-Gleichheit, identische geteilte Dateien und JS-Syntax.
+
+## Datenschutz
+
+Die Datenschutzerkl\u00e4rung steht in `PRIVACY.md` (deutsch + englisch). F\u00fcr die Einreichung im Chrome Web Store unter einer \u00f6ffentlichen URL hosten und diese im Entwickler-Dashboard unter \u201eDatenschutzbestimmungen\u201c hinterlegen.
