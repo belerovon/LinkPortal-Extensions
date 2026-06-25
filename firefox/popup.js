@@ -6,7 +6,7 @@
 // (Firefox/Safari) so `await chrome.*` works; on Chrome `browser` is undefined → native chrome.* (already promise-based in MV3).
 if (typeof browser !== 'undefined' && browser.runtime) { try { globalThis.chrome = browser; } catch (e) {} }
 
-const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.17';
+const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.18';
 const ALL_TAB = 'all'; // virtual tab showing all sections
 const RSS_TAB = 'rss'; // virtual tab showing the user's RSS feeds
 const MAX_INACTIVE_DAYS = 30;
@@ -114,6 +114,7 @@ function setCardTitle(id, iconName, text){
 // Extension-local icons not present in the portal set
 SVG.themeAuto = '<svg class="lpi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor" stroke="none"/></svg>';
 SVG.calendar  = '<svg class="lpi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>';
+SVG.rss       = '<svg class="lpi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>';
 // Priority indicator dots — intentional semantic colors (not theme-following)
 SVG.prioHigh   = '<svg class="lpi prio-dot" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" fill="#ef4444"/></svg>';
 SVG.prioMedium = '<svg class="lpi prio-dot" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6" fill="#f59e0b"/></svg>';
@@ -542,7 +543,7 @@ function renderTabBar() {
   if(S.activeTab === ALL_TAB) {
     label.innerHTML = tabIconHtml('clipboard') + esc(t('tab_all_label'));
   } else if(S.activeTab === RSS_TAB) {
-    label.innerHTML = tabIconHtml('rss') + esc(t('rss_title'));
+    label.innerHTML = tabIconHtml(SVG.rss) + esc(t('rss_title'));
   } else {
     const activeTab = S.tabs.find(t2=>t2.id===S.activeTab);
     label.innerHTML = tabIconHtml(activeTab?.icon) + esc(activeTab?.title || '');
@@ -579,7 +580,7 @@ function openTabsDropdown() {
   const allItem = '<button class="tab-drop-item'+(S.activeTab===ALL_TAB?' active':'')+'" data-id="'+ALL_TAB+'">'+
     tabIconHtml('clipboard')+'<span>'+esc(t('lbl_starttab_all'))+'</span></button>';
   const rssItem = '<button class="tab-drop-item'+(S.activeTab===RSS_TAB?' active':'')+'" data-id="'+RSS_TAB+'">'+
-    tabIconHtml('rss')+'<span>'+esc(t('rss_title'))+'</span></button>';
+    tabIconHtml(SVG.rss)+'<span>'+esc(t('rss_title'))+'</span></button>';
   dropdown.innerHTML = allItem + rssItem + S.tabs.map(tab =>
     '<button class="tab-drop-item'+(tab.id===S.activeTab?' active':'')+'" data-id="'+tab.id+'">'+
     tabIconHtml(tab.icon)+
@@ -719,7 +720,7 @@ async function renderRss(){
   try { const s = await apiGet('/settings'); feeds = (s && s.rss_feeds) || []; maxItems = (s && s.rss_max_items) || 8; } catch {}
   if(S.activeTab !== RSS_TAB) return;                       // user navigated away while loading
   if(!feeds.length){
-    c.innerHTML = '<div class="empty-tab"><div class="empty-icon">'+iconSvg('rss')+'</div><p>'+esc(t('rss_empty'))+'</p></div>';
+    c.innerHTML = '<div class="empty-tab"><div class="empty-icon">'+SVG.rss+'</div><p>'+esc(t('rss_empty'))+'</p></div>';
     return;
   }
   c.innerHTML = '<div class="rss-wrap"></div>';
@@ -727,7 +728,7 @@ async function renderRss(){
   for(const f of feeds){
     const block = document.createElement('div');
     block.className = 'section-block rss-feed';
-    block.innerHTML = '<div class="section-header">'+sectionIconHtml('rss')+'<span class="section-title">'+esc(f.title || f.url)+'</span></div>'
+    block.innerHTML = '<div class="section-header">'+sectionIconHtml(SVG.rss)+'<span class="section-title">'+esc(f.title || f.url)+'</span></div>'
       + '<div class="rss-items">'+spin()+'</div>';
     wrap.appendChild(block);
     const itemsEl = block.querySelector('.rss-items');
@@ -744,8 +745,11 @@ async function renderRss(){
       itemsEl.querySelectorAll('.rss-item').forEach(el =>
         el.addEventListener('click', e => { e.preventDefault(); if(el.dataset.url) openLink(el.dataset.url, 'blank'); }));
     } catch {
-      itemsEl.innerHTML = '<div class="tr-error">'+esc(t('rss_error'))+'</div>';
+      block.remove();   // Feed nicht ladbar -> ausblenden statt Fehlermeldung
     }
+  }
+  if(S.activeTab === RSS_TAB && !wrap.childElementCount){
+    c.innerHTML = '<div class="empty-tab"><div class="empty-icon">'+SVG.rss+'</div><p>'+esc(t('rss_empty'))+'</p></div>';
   }
 }
 

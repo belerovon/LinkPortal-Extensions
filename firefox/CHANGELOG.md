@@ -3,6 +3,12 @@
 Alle nennenswerten Änderungen an der LinkPortal Browser-Extension (Chrome & Safari).
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/); Versionierung nach [SemVer](https://semver.org/).
 
+## [1.10.18] — 2026-06-24
+
+### Changed
+- **RSS:** Feeds, die nicht geladen werden können, werden jetzt ausgeblendet statt mit einer Fehlermeldung angezeigt. Bleibt dadurch kein Feed übrig, erscheint der Leerzustand.
+- **RSS:** Eigenes RSS-Symbol für Tab-Leiste, Menü und Feed-Köpfe (lokales `SVG.rss`, theme-treu; `icons.js` bleibt portal-identisch).
+
 ## [1.10.17] — 2026-06-21
 
 ### Added
