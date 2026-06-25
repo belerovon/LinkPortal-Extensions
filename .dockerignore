@@ -1,0 +1,18 @@
+# Routinen / Entwickler-Tooling — gehören nicht in einen Build-/Docker-Kontext.
+# Künftige Routinen einfach unter scripts/ ablegen; sie sind damit automatisch ausgenommen.
+scripts/
+
+# Build-Artefakte & Pakete
+dist/
+build/
+*.zip
+
+# VCS / OS / Editor
+.git/
+.gitignore
+.gitattributes
+.DS_Store
+Thumbs.db
+*.swp
+*~
+node_modules/

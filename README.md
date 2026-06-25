@@ -12,7 +12,20 @@ LinkPortal-Extension/
 ```
 
 Die Dateien `popup.html/.css/.js`, `i18n.js`, `icons.js` und `icons/` sind in allen drei
-Unterordnern identisch. **Version: 1.10.16**
+Unterordnern identisch. **Version: 1.10.17**
+
+## Funktionen
+
+- **Sektionen, Links, Aufgaben, Widgets** aus dem Portal direkt in der Toolbar; Offline-Cache mit
+  Hintergrund-Aktualisierung (alle 30 Min) und virtueller „Alle Sektionen"-Ansicht.
+- **Suche** über den Cache (inkl. Tags via `#tag`) plus **globale Server-Suche** („Aus dem Portal").
+- **Favoriten** per Stern umschalten; **Health-Status** der Links als farbiger Punkt, Prüfung pro
+  Sektion auslösbar (mit Bearbeitungsrecht).
+- **Aufgaben** abhaken sowie Priorität/Fälligkeit bearbeiten.
+- **Übersetzung** über das Portal (Ergebnis inline) und **RSS-Ansicht** der im Portal hinterlegten Feeds.
+- **Lesezeichen-Synchronisierung** (optional, opt-in): einseitig Portal → Browser, Zielordner wählbar.
+- **Themes** (hell/dunkel/auto), **drei Sprachen** (DE/EN/ES), PWA-/Setup-Flow, Portal-Version & aktive
+  Funktionen im Einstellungs-Dialog.
 
 ## Versionspflege
 
@@ -21,9 +34,9 @@ Die angezeigte Version liest das Popup zur Laufzeit aus dem Manifest
 Zum Anheben/Prüfen über alle drei Varianten dient `version.sh`:
 
 ```bash
-./version.sh                 # Konsistenz prüfen (nichts ändern)
-./version.sh bump patch      # patch|minor|major erhöhen, überall setzen, spiegeln, prüfen
-./version.sh set 1.10.20     # exakte Version setzen
+./scripts/version.sh                 # Konsistenz prüfen (nichts ändern)
+./scripts/version.sh bump patch      # patch|minor|major erhöhen, überall setzen, spiegeln, prüfen
+./scripts/version.sh set 1.10.20     # exakte Version setzen
 ```
 
 Die Routine setzt nur gezielt das `version`-Feld der drei `manifest.json`, die Popup-Platzhalter,
@@ -33,4 +46,6 @@ und `safari/` und prüft Manifest-Gleichheit, identische geteilte Dateien und JS
 
 ## Datenschutz
 
-Die Datenschutzerkl\u00e4rung steht in `PRIVACY.md` (deutsch + englisch). F\u00fcr die Einreichung im Chrome Web Store unter einer \u00f6ffentlichen URL hosten und diese im Entwickler-Dashboard unter \u201eDatenschutzbestimmungen\u201c hinterlegen.
+Die Datenschutzerklärung steht in `PRIVACY.md` (deutsch + englisch). Für die Einreichung im
+Chrome Web Store unter einer öffentlichen URL hosten und diese im Entwickler-Dashboard unter
+„Datenschutzbestimmungen" hinterlegen.

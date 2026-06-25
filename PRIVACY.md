@@ -1,6 +1,6 @@
 # Datenschutzerklärung — LinkPortal Browser-Extension
 
-**Stand:** 2026-06-21 · **Gilt für:** LinkPortal Extension (Chrome, Firefox, Safari) ab Version 1.10.16
+**Stand:** 2026-06-24 · **Gilt für:** LinkPortal Extension (Chrome, Firefox, Safari) ab Version 1.10.17
 
 > Platzhalter in «spitzen Klammern» bitte vor der Veröffentlichung ausfüllen und diese Datei unter
 > einer öffentlich erreichbaren URL hosten (z. B. `https://«deine-domain»/privacy` oder als
@@ -117,7 +117,7 @@ Zur Eingabe im Entwickler-Dashboard unter „Datenschutzpraktiken":
 
 # Privacy Policy — LinkPortal Browser Extension (English)
 
-**Last updated:** 2026-06-21 · Applies to LinkPortal Extension (Chrome, Firefox, Safari) v1.10.16+
+**Last updated:** 2026-06-24 · Applies to LinkPortal Extension (Chrome, Firefox, Safari) v1.10.17+
 
 **Controller:** «Name / operator» (operator of `kleckerbox.link`) · Contact: «contact@your-domain» ·
 Source: https://github.com/beleroveon

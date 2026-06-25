@@ -1,6 +1,7 @@
 /* LinkPortal Extension — i18n.js v1.4.0 */
 const I18N = {
   de: {
+    search_portal_more:'Aus dem Portal', tr_translating:'Übersetze…', tr_error:'Übersetzung fehlgeschlagen', tr_copy:'Kopieren', rss_title:'RSS', rss_empty:'Keine RSS-Feeds konfiguriert', rss_error:'Feed konnte nicht geladen werden',
     favorite:'Favorit', check_links:'Links prüfen', checking:'Prüfe…', check_done:'Geprüft', portal_version:'Portal-Version',
     brand:'LinkPortal', version:'Version',
     search_placeholder:'Links durchsuchen…',
@@ -94,6 +95,7 @@ const I18N = {
     err_title_required:'Titel ist ein Pflichtfeld',
   },
   en: {
+    search_portal_more:'From the portal', tr_translating:'Translating…', tr_error:'Translation failed', tr_copy:'Copy', rss_title:'RSS', rss_empty:'No RSS feeds configured', rss_error:'Could not load feed',
     favorite:'Favorite', check_links:'Check links', checking:'Checking…', check_done:'Checked', portal_version:'Portal version',
     brand:'LinkPortal', version:'Version',
     search_placeholder:'Search links…',
@@ -180,6 +182,7 @@ const I18N = {
     err_url_required:'URL is required', err_title_required:'Title is required',
   },
   es: {
+    search_portal_more:'Del portal', tr_translating:'Traduciendo…', tr_error:'Error de traducción', tr_copy:'Copiar', rss_title:'RSS', rss_empty:'Sin feeds RSS configurados', rss_error:'No se pudo cargar el feed',
     favorite:'Favorito', check_links:'Comprobar enlaces', checking:'Comprobando…', check_done:'Comprobado', portal_version:'Versión del portal',
     brand:'LinkPortal', version:'Versión',
     search_placeholder:'Buscar enlaces…',

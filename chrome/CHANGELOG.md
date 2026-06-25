@@ -3,6 +3,13 @@
 Alle nennenswerten Änderungen an der LinkPortal Browser-Extension (Chrome & Safari).
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/); Versionierung nach [SemVer](https://semver.org/).
 
+## [1.10.17] — 2026-06-21
+
+### Added
+- **Globale Server-Suche (H).** Zusätzlich zur Offline-Suche werden nach kurzer Verzögerung Treffer aus `GET /api/search` unter „Aus dem Portal“ angehängt (entdeckt auch nicht gecachte Links, Sektionen und Aufgaben; Duplikate werden ausgefiltert).
+- **Übersetzung über das Portal (G).** Die Übersetzungs-Sektion nutzt jetzt `POST /api/translate` und zeigt das Ergebnis direkt im Popup (mit Kopier-Button), statt nach Google Translate zu verlinken. „Auto“ als Quelle entfällt, da eine konkrete Ausgangssprache benötigt wird.
+- **RSS-Ansicht (F).** Neuer virtueller Eintrag „RSS“ im Tab-Menü listet die im Portal konfigurierten Feeds (`/api/settings` → `rss_feeds`) und lädt deren Einträge über `GET /api/rss` (begrenzt durch `rss_max_items`).
+
 ## [1.10.16] — 2026-06-21
 
 ### Fixed

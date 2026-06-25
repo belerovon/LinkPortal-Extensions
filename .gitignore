@@ -16,4 +16,5 @@ build/
 safari/xcode-wrapper/build/
 *.xcuserstate
 DerivedData/
-version.sh
+
+# Routinen liegen unter scripts/ (versioniert). Build-/Docker-Kontext schliesst sie via .dockerignore aus.

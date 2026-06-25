@@ -6,8 +6,9 @@
 // (Firefox/Safari) so `await chrome.*` works; on Chrome `browser` is undefined → native chrome.* (already promise-based in MV3).
 if (typeof browser !== 'undefined' && browser.runtime) { try { globalThis.chrome = browser; } catch (e) {} }
 
-const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.16';
+const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.17';
 const ALL_TAB = 'all'; // virtual tab showing all sections
+const RSS_TAB = 'rss'; // virtual tab showing the user's RSS feeds
 const MAX_INACTIVE_DAYS = 30;
 
 // ── 403 Threshold: 3 failures within 5 minutes triggers logout ──
@@ -433,6 +434,7 @@ function applyData(data, lastActiveTab, startTab='last') {
     S.activeTab = ALL_TAB;
   } else if(startTab === 'last' && lastActiveTab) {
     if(lastActiveTab === ALL_TAB) S.activeTab = ALL_TAB;
+    else if(lastActiveTab === RSS_TAB) S.activeTab = RSS_TAB;
     else if(S.tabs.find(t2=>t2.id===lastActiveTab)) S.activeTab = lastActiveTab;
     else S.activeTab = S.tabs[0]?.id || null;
   } else {
@@ -539,6 +541,8 @@ function renderTabBar() {
   const label = $('active-tab-label');
   if(S.activeTab === ALL_TAB) {
     label.innerHTML = tabIconHtml('clipboard') + esc(t('tab_all_label'));
+  } else if(S.activeTab === RSS_TAB) {
+    label.innerHTML = tabIconHtml('rss') + esc(t('rss_title'));
   } else {
     const activeTab = S.tabs.find(t2=>t2.id===S.activeTab);
     label.innerHTML = tabIconHtml(activeTab?.icon) + esc(activeTab?.title || '');
@@ -553,7 +557,7 @@ function renderTabBar() {
     });
   });
   const addBtn = $('tab-add-btn');
-  addBtn.style.display = canAdd ? '' : 'none';
+  addBtn.style.display = (canAdd && S.activeTab !== RSS_TAB) ? '' : 'none';
   addBtn.textContent = t('btn_add_link');
 }
 
@@ -574,7 +578,9 @@ function openTabsDropdown() {
   // "Alle Sektionen" virtual tab at top
   const allItem = '<button class="tab-drop-item'+(S.activeTab===ALL_TAB?' active':'')+'" data-id="'+ALL_TAB+'">'+
     tabIconHtml('clipboard')+'<span>'+esc(t('lbl_starttab_all'))+'</span></button>';
-  dropdown.innerHTML = allItem + S.tabs.map(tab =>
+  const rssItem = '<button class="tab-drop-item'+(S.activeTab===RSS_TAB?' active':'')+'" data-id="'+RSS_TAB+'">'+
+    tabIconHtml('rss')+'<span>'+esc(t('rss_title'))+'</span></button>';
+  dropdown.innerHTML = allItem + rssItem + S.tabs.map(tab =>
     '<button class="tab-drop-item'+(tab.id===S.activeTab?' active':'')+'" data-id="'+tab.id+'">'+
     tabIconHtml(tab.icon)+
     '<span>'+esc(tab.title)+'</span></button>'
@@ -582,7 +588,7 @@ function openTabsDropdown() {
   dropdown.querySelectorAll('.tab-drop-item').forEach(btn => {
     btn.addEventListener('click', () => {
       const rawId = btn.dataset.id;
-      const tabId = rawId === ALL_TAB ? ALL_TAB : parseInt(rawId);
+      const tabId = (rawId === ALL_TAB || rawId === RSS_TAB) ? rawId : parseInt(rawId);
       dropdown.style.display = 'none'; chevron.classList.remove('open'); if(burger) burger.classList.remove('open');
       switchTab(tabId);
     });
@@ -705,10 +711,49 @@ function renderAllSections() {
   wireWidgets(content);
 }
 
+// F: RSS view — reads the user's feeds from /api/settings and fetches each via /api/rss.
+async function renderRss(){
+  const c = $('tab-content');
+  c.innerHTML = '<div class="rss-loading" style="padding:16px;color:var(--text-dim)">'+spin()+'</div>';
+  let feeds = [], maxItems = 8;
+  try { const s = await apiGet('/settings'); feeds = (s && s.rss_feeds) || []; maxItems = (s && s.rss_max_items) || 8; } catch {}
+  if(S.activeTab !== RSS_TAB) return;                       // user navigated away while loading
+  if(!feeds.length){
+    c.innerHTML = '<div class="empty-tab"><div class="empty-icon">'+iconSvg('rss')+'</div><p>'+esc(t('rss_empty'))+'</p></div>';
+    return;
+  }
+  c.innerHTML = '<div class="rss-wrap"></div>';
+  const wrap = c.querySelector('.rss-wrap');
+  for(const f of feeds){
+    const block = document.createElement('div');
+    block.className = 'section-block rss-feed';
+    block.innerHTML = '<div class="section-header">'+sectionIconHtml('rss')+'<span class="section-title">'+esc(f.title || f.url)+'</span></div>'
+      + '<div class="rss-items">'+spin()+'</div>';
+    wrap.appendChild(block);
+    const itemsEl = block.querySelector('.rss-items');
+    try {
+      const r = await apiGet('/rss?url='+encodeURIComponent(f.url));
+      if(S.activeTab !== RSS_TAB) return;
+      const items = ((r && r.items) || []).slice(0, maxItems);
+      if(!items.length){ itemsEl.innerHTML = '<div class="widget-empty">'+esc(t('widget_empty'))+'</div>'; continue; }
+      itemsEl.innerHTML = items.map(it =>
+        '<a class="link-item rss-item" href="#" data-url="'+esc(it.link || '')+'">'
+        + '<div class="link-info"><div class="link-title">'+esc(it.title || it.link || '')+'</div>'
+        + (it.date ? '<div class="link-desc rss-date">'+esc(it.date)+'</div>' : '')
+        + '</div></a>').join('');
+      itemsEl.querySelectorAll('.rss-item').forEach(el =>
+        el.addEventListener('click', e => { e.preventDefault(); if(el.dataset.url) openLink(el.dataset.url, 'blank'); }));
+    } catch {
+      itemsEl.innerHTML = '<div class="tr-error">'+esc(t('rss_error'))+'</div>';
+    }
+  }
+}
+
 // ── Render tab content ──
 function renderTabContent(tabId) {
   // Virtual "All Sections" tab
   if(tabId === ALL_TAB) { renderAllSections(); return; }
+  if(tabId === RSS_TAB) { renderRss(); return; }
   const content = $('tab-content');
   const secs = S.sections[tabId]||[];
   const tabPerm = S.perms[tabId]||{};
@@ -988,8 +1033,9 @@ function renderTranslateSection(sec) {
     ['pl','🇵🇱 Polski'],['ru','🇷🇺 Русский'],['zh','🇨🇳 中文'],['ja','🇯🇵 日本語'],
     ['ko','🇰🇷 한국어'],['ar','🇸🇦 العربية'],['tr','🇹🇷 Türkçe'],['sv','🇸🇪 Svenska'],
   ];
-  const opts = LANGS.map(([v,l]) => '<option value="'+v+'"'+(v==='de'?' selected':'')+'>'+l+'</option>').join('');
-  const enOpts = LANGS.filter(([v])=>v!=='auto').map(([v,l]) => '<option value="'+v+'"'+(v==='en'?' selected':'')+'>'+l+'</option>').join('');
+  const optsNoAuto = LANGS.filter(([v])=>v!=='auto');
+  const opts   = optsNoAuto.map(([v,l]) => '<option value="'+v+'"'+(v==='de'?' selected':'')+'>'+l+'</option>').join('');
+  const enOpts = optsNoAuto.map(([v,l]) => '<option value="'+v+'"'+(v==='en'?' selected':'')+'>'+l+'</option>').join('');
   return '<div class="section-block translate-section-widget" data-sec-id="'+sec.id+'">'
     + '<div class="section-header">'
     + sectionIconHtml(sec.icon)
@@ -1003,6 +1049,7 @@ function renderTranslateSection(sec) {
     + '<button class="tr-go btn btn-primary">'+iconSvg('globe')+'</button>'
     + '</div>'
     + '<textarea class="tr-input" placeholder="'+t('tr_input_placeholder')+'" rows="3"></textarea>'
+    + '<div class="tr-result" style="display:none"></div>'
     + '</div></div>';
 }
 
@@ -1012,21 +1059,34 @@ function wireTranslateWidget(widget) {
   const input   = widget.querySelector('.tr-input');
   const goBtn   = widget.querySelector('.tr-go');
   const swapBtn = widget.querySelector('.tr-swap');
+  const result  = widget.querySelector('.tr-result');
 
-  const doTranslate = () => {
+  const doTranslate = async () => {
     const text = input.value.trim();
     if(!text) { input.focus(); return; }
-    const sl = fromSel.value;
-    const tl = toSel.value;
-    const url = 'https://translate.google.com/?sl='+sl+'&tl='+tl+'&text='+encodeURIComponent(text)+'&op=translate';
-    chrome.tabs.create({url, active:true});
+    if(result){ result.style.display=''; result.innerHTML = '<span class="tr-status">'+spin()+' '+esc(t('tr_translating'))+'</span>'; }
+    goBtn.disabled = true;
+    try {
+      const r = await apiFetch('POST', '/translate', { text, from_lang: fromSel.value, to_lang: toSel.value });
+      if(r && r.translated){
+        result.innerHTML = '<div class="tr-output">'+esc(r.translated)+'</div>'
+          + '<button class="tr-copy btn btn-ghost btn-sm" title="'+esc(t('tr_copy'))+'">'+iconSvg('copy')+'</button>';
+        result.querySelector('.tr-copy')?.addEventListener('click', ev => {
+          try { navigator.clipboard && navigator.clipboard.writeText(r.translated); } catch {}
+          const b = ev.currentTarget, old = b.innerHTML; b.textContent = '✓';
+          setTimeout(() => { b.innerHTML = old; }, 1200);
+        });
+      } else {
+        result.innerHTML = '<div class="tr-error">'+esc((r && r.error) || t('tr_error'))+'</div>';
+      }
+    } catch(e) {
+      result.innerHTML = '<div class="tr-error">'+esc(t('tr_error'))+'</div>';
+    } finally { goBtn.disabled = false; }
   };
 
   swapBtn.addEventListener('click', () => {
-    const fromVal = fromSel.value;
-    const toVal   = toSel.value;
-    fromSel.value = toVal === 'auto' ? 'de' : toVal;
-    toSel.value   = fromVal === 'auto' ? 'de' : fromVal;
+    const fromVal = fromSel.value, toVal = toSel.value;
+    fromSel.value = toVal; toSel.value = fromVal;
   });
 
   goBtn.addEventListener('click', doTranslate);
@@ -1278,7 +1338,7 @@ function kbdSelectResult(idx) {
 function performSearch(q) {
   q=q.trim().toLowerCase();
   const sr=$('search-results'),tc=$('tab-content'),tb=$('tabs-bar');
-  if(!q){sr.style.display='none';tc.style.display='';tb.style.display='';return;}
+  if(!q){_srvSearchSeq++;clearTimeout(_srvSearchTimer);sr.style.display='none';tc.style.display='';tb.style.display='';return;}
   tc.style.display='none';tb.style.display='none';sr.style.display='';
   searchKbdIdx = -1; // reset keyboard selection on new query
   // "#tag" → match links carrying that exact tag; otherwise full-text (incl. tags)
@@ -1292,7 +1352,7 @@ function performSearch(q) {
   const cnt=m.length;
   $('results-header').textContent=cnt+' '+(cnt===1?t('results_suffix_one'):t('results_suffix_many'));
   const list=$('results-list');
-  if(!cnt){list.innerHTML='<div class="no-results"><div class="no-results-icon">'+iconSvg('search')+'</div><span>'+t('no_results_prefix')+' "'+esc(q)+'"</span></div>';return;}
+  if(!cnt){list.innerHTML='<div class="no-results"><div class="no-results-icon">'+iconSvg('search')+'</div><span>'+t('no_results_prefix')+' "'+esc(q)+'"</span></div>'; scheduleServerSearch(q, new Set()); return;}
   list.innerHTML = m.map(link => {
     // Use section-level perms (sec_perms) with tab-level fallback
     const sec = (S.sections[link.tabId]||[]).find(s=>s.id===link.sectionId);
@@ -1318,9 +1378,50 @@ function performSearch(q) {
     el.querySelector('.edit-btn')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(link)openLinkDialog(link,link.tabId);});
     el.querySelector('.del')?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(link)deleteLink(id,link.tabId);});
   });
+  scheduleServerSearch(q, new Set(m.map(l=>l.id)));
+}
+
+// H: server-side global search, appended below the offline results (debounced, de-duplicated).
+let _srvSearchSeq = 0, _srvSearchTimer = null;
+function scheduleServerSearch(q, shownIds){
+  clearTimeout(_srvSearchTimer);
+  if(!q || q[0] === '#' || q.length < 2) return;
+  if(!(S.baseUrl && S.token && S.username)) return;
+  const seq = ++_srvSearchSeq;
+  _srvSearchTimer = setTimeout(async () => {
+    let res;
+    try { res = await apiGet('/search?q='+encodeURIComponent(q)); } catch { return; }
+    if(seq !== _srvSearchSeq) return;
+    const cur = ($('search-input').value || '').trim().toLowerCase();
+    if(cur !== q) return;
+    const extra = (res || []).filter(r => !(r.type === 'link' && shownIds.has(r.id)));
+    const list = $('results-list');
+    if(!extra.length || !list) return;
+    const base = (S.baseUrl || '').replace(/\/$/, '');
+    const rows = extra.map(r => {
+      const isLink = r.type === 'link' && r.url;
+      const url = isLink ? r.url : base;
+      const crumbTail = r.type === 'section' ? '' : (' › ' + esc(r.title || ''));
+      return '<a class="link-item srv-result" data-url="'+esc(url)+'" data-open="blank" href="#">'
+        + favicon({ url: r.url || '', logo_url: '', title: r.title || r.match || '' })
+        + '<div class="link-info"><div class="link-title">'+hilite(r.title || r.match || '', q)+'</div>'
+        + '<div class="result-breadcrumb"><span>'+esc(r.tab_title || '')+'</span>'+crumbTail+'</div></div>'
+        + '<div class="link-actions"><button class="link-action-btn open-btn">'+SVG.open+'</button></div></a>';
+    }).join('');
+    const group = document.createElement('div');
+    group.className = 'search-server-group';
+    group.innerHTML = '<div class="results-subhead">'+esc(t('search_portal_more'))+'</div>'+rows;
+    list.appendChild(group);
+    group.querySelectorAll('.srv-result').forEach(el => {
+      el.addEventListener('click', e => { if(e.target.closest('.link-action-btn')) return; e.preventDefault(); openLink(el.dataset.url, el.dataset.open); });
+      el.querySelector('.open-btn')?.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openLink(el.dataset.url, el.dataset.open); });
+    });
+    resolveFavicons(group);
+  }, 350);
 }
 
 function clearSearch(){
+  _srvSearchSeq++; clearTimeout(_srvSearchTimer);
   $('search-input').value='';
   $('search-clear').style.display='none';
   // Restore both tab-content and tabs-bar directly (don't call performSearch to avoid re-render)

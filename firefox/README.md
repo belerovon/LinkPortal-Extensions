@@ -2,7 +2,7 @@
 
 Firefox-Variante der LinkPortal Extension (Manifest V3, Gecko ≥ 115).
 
-> Aktuelle Version: **1.10.9** · siehe [CHANGELOG.md](CHANGELOG.md)
+> Version: siehe [CHANGELOG.md](CHANGELOG.md) bzw. `manifest.json` (die angezeigte Version liest das Popup zur Laufzeit aus dem Manifest).
 
 ## Unterschiede zur Chrome-Version
 
