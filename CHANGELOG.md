@@ -3,6 +3,23 @@
 Alle nennenswerten Änderungen an der LinkPortal Browser-Extension (Chrome & Safari).
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/); Versionierung nach [SemVer](https://semver.org/).
 
+## [1.10.21] — 2026-06-24
+
+### Changed
+- **Aufgaben: erledigte serverseitig nachladen.** Neuer Schalter „Erledigte anzeigen/ausblenden". Erledigte Aufgaben werden erst bei Bedarf über `?show_done=true` geladen (weniger Daten). Behebt zugleich, dass erledigte Aufgaben bisher gar nicht erschienen (der Endpunkt liefert per Default nur offene).
+- **Übersetzung: Quellsprache-Erkennung.** Erkennt das Portal eine andere Ausgangssprache als gewählt (`detected`), erscheint ein Button „Erkannt: … – neu übersetzen", der die Übersetzung mit der erkannten Sprache wiederholt.
+
+## [1.10.20] — 2026-06-24
+
+### Performance
+- **Favicons parallel laden.** `resolveFavicons` löst Icons jetzt pro Domain entdoppelt und gleichzeitig auf (vorher ein Netzwerk-Roundtrip pro Icon nacheinander) — spürbar schneller bei vielen Links.
+- **RSS-Feeds parallel abrufen.** Die Feeds einer RSS-Ansicht werden gleichzeitig geladen (Reihenfolge bleibt erhalten); ein `isConnected`-Schutz verhindert, dass ein verzögertes Ergebnis eine neuere Ansicht überschreibt.
+
+## [1.10.19] — 2026-06-24
+
+### Fixed
+- **Health-Status nur bei aktivierter Prüfung.** Der Status-Punkt erschien auch für Links in Sektionen, in denen der Health-Check deaktiviert ist (alter, gespeicherter Status). Der Punkt wird jetzt nur noch angezeigt, wenn die Prüfung auf Sektions- **und** Link-Ebene aktiv ist (`health_check`). Ebenso ist der „Links prüfen"-Button in deaktivierten Sektionen ausgeblendet.
+
 ## [1.10.18] — 2026-06-24
 
 ### Changed

@@ -6,7 +6,7 @@
 // (Firefox/Safari) so `await chrome.*` works; on Chrome `browser` is undefined → native chrome.* (already promise-based in MV3).
 if (typeof browser !== 'undefined' && browser.runtime) { try { globalThis.chrome = browser; } catch (e) {} }
 
-const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.18';
+const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.21';
 const ALL_TAB = 'all'; // virtual tab showing all sections
 const RSS_TAB = 'rss'; // virtual tab showing the user's RSS feeds
 const MAX_INACTIVE_DAYS = 30;
@@ -402,6 +402,8 @@ async function fetchFromApi() {
       if(st === 'links') {
         try { links[sec.id] = await apiGet('/sections/'+sec.id+'/links'); }
         catch(e) { if(e.status===403) throw e; links[sec.id]=[]; }
+        const secHealth = sec.health_check !== false;          // section-level health-check toggle
+        for(const l of (links[sec.id]||[])) l._secHealth = secHealth;
         return;
       }
       links[sec.id] = [];
@@ -694,7 +696,7 @@ function renderAllSections() {
         + '<span class="section-title">'+esc(sec.title)+'</span>'
         + '<span class="all-tab-label">'+esc(tab.title)+'</span>'
         + '<button class="section-count" data-sec-id="'+sec.id+'" title="'+t('open_all_links')+'">'+lnks.length+'</button>'
-        + (canEdit?'<button class="section-check" data-sec-id="'+sec.id+'" title="'+t('check_links')+'">'+SVG.refresh+'</button>':'')
+        + (canEdit && sec.health_check !== false?'<button class="section-check" data-sec-id="'+sec.id+'" title="'+t('check_links')+'">'+SVG.refresh+'</button>':'')
         + '</div>'
         + lnks.map(l=>linkHtml({...l, sectionId:sec.id}, canEdit, canDel)).join('')
         + '</div>';
@@ -725,18 +727,23 @@ async function renderRss(){
   }
   c.innerHTML = '<div class="rss-wrap"></div>';
   const wrap = c.querySelector('.rss-wrap');
-  for(const f of feeds){
+  // Create the feed blocks in order first (preserves feed order), then fetch all feeds
+  // in parallel (was one-by-one). Failed feeds are removed; if none remain, show empty state.
+  const blocks = feeds.map(f => {
     const block = document.createElement('div');
     block.className = 'section-block rss-feed';
     block.innerHTML = '<div class="section-header">'+sectionIconHtml(SVG.rss)+'<span class="section-title">'+esc(f.title || f.url)+'</span></div>'
       + '<div class="rss-items">'+spin()+'</div>';
     wrap.appendChild(block);
+    return { f, block };
+  });
+  await Promise.all(blocks.map(async ({ f, block }) => {
     const itemsEl = block.querySelector('.rss-items');
     try {
       const r = await apiGet('/rss?url='+encodeURIComponent(f.url));
-      if(S.activeTab !== RSS_TAB) return;
+      if(!wrap.isConnected) return;                          // a newer render replaced this view
       const items = ((r && r.items) || []).slice(0, maxItems);
-      if(!items.length){ itemsEl.innerHTML = '<div class="widget-empty">'+esc(t('widget_empty'))+'</div>'; continue; }
+      if(!items.length){ itemsEl.innerHTML = '<div class="widget-empty">'+esc(t('widget_empty'))+'</div>'; return; }
       itemsEl.innerHTML = items.map(it =>
         '<a class="link-item rss-item" href="#" data-url="'+esc(it.link || '')+'">'
         + '<div class="link-info"><div class="link-title">'+esc(it.title || it.link || '')+'</div>'
@@ -747,8 +754,8 @@ async function renderRss(){
     } catch {
       block.remove();   // Feed nicht ladbar -> ausblenden statt Fehlermeldung
     }
-  }
-  if(S.activeTab === RSS_TAB && !wrap.childElementCount){
+  }));
+  if(wrap.isConnected && S.activeTab === RSS_TAB && !wrap.childElementCount){
     c.innerHTML = '<div class="empty-tab"><div class="empty-icon">'+SVG.rss+'</div><p>'+esc(t('rss_empty'))+'</p></div>';
   }
 }
@@ -800,7 +807,7 @@ function renderTabContent(tabId) {
       sectionIconHtml(sec.icon)+
       '<span class="section-title">'+esc(sec.title)+'</span>'+
       '<button class="section-count" data-sec-id="'+sec.id+'" title="'+t('open_all_links')+'">'+lnks.length+'</button>'+
-      (canEdit?'<button class="section-check" data-sec-id="'+sec.id+'" title="'+t('check_links')+'">'+SVG.refresh+'</button>':'')+
+      (canEdit && sec.health_check !== false?'<button class="section-check" data-sec-id="'+sec.id+'" title="'+t('check_links')+'">'+SVG.refresh+'</button>':'')+
       '</div>'+
       lnks.map(l=>linkHtml({...l, sectionId:sec.id}, canEdit, canDel)).join('')+'</div>';
   }
@@ -842,7 +849,8 @@ async function loadTasksInto(widget, secId) {
   const canEdit = sp ? (sp.can_edit||false) : (tp.can_edit||false);
 
   try {
-    const tasks = await apiGet('/sections/'+secId+'/tasks');
+    const showDone = widget.dataset.showDone === '1';
+    const tasks = await apiGet('/sections/'+secId+'/tasks' + (showDone ? '?show_done=true' : ''));
     const open   = tasks.filter(t => !t.done);
     const done   = tasks.filter(t =>  t.done);
     const PRIO = { high:SVG.prioHigh, medium:SVG.prioMedium, low:SVG.prioLow, none:'' };
@@ -872,7 +880,15 @@ async function loadTasksInto(widget, secId) {
       + (done.length ? '<div class="task-done-divider">'+iconSvg('check')+' '+done.length+'</div>'
           + done.map(renderTask).join('') : '')
       + (canEdit ? '<div class="task-add-row"><input class="task-add-input" placeholder="'
-          + t('task_add_placeholder') + '" type="text"><button class="task-add-btn">+</button></div>' : '');
+          + t('task_add_placeholder') + '" type="text"><button class="task-add-btn">+</button></div>' : '')
+      + '<button type="button" class="task-toggle-done btn btn-ghost btn-sm">'
+          + esc(t(showDone ? 'tasks_hide_done' : 'tasks_show_done')) + '</button>';
+
+    // Show/hide completed tasks — fetched from the server only on demand (show_done param)
+    body.querySelector('.task-toggle-done')?.addEventListener('click', () => {
+      widget.dataset.showDone = showDone ? '' : '1';
+      loadTasksInto(widget, secId);
+    });
 
     // Toggle done — dedicated /toggle endpoint needs only read permission, so any viewer can check tasks off
     body.querySelectorAll('.task-item input[type=checkbox]').forEach(cb => {
@@ -1073,13 +1089,18 @@ function wireTranslateWidget(widget) {
     try {
       const r = await apiFetch('POST', '/translate', { text, from_lang: fromSel.value, to_lang: toSel.value });
       if(r && r.translated){
+        const det = String(r.detected || '').slice(0,2).toLowerCase();
+        const detOpt = (det && det !== fromSel.value) ? fromSel.querySelector('option[value="'+det+'"]') : null;
+        const detLabel = detOpt ? detOpt.textContent : '';
         result.innerHTML = '<div class="tr-output">'+esc(r.translated)+'</div>'
-          + '<button class="tr-copy btn btn-ghost btn-sm" title="'+esc(t('tr_copy'))+'">'+iconSvg('copy')+'</button>';
+          + '<button class="tr-copy btn btn-ghost btn-sm" title="'+esc(t('tr_copy'))+'">'+iconSvg('copy')+'</button>'
+          + (detLabel ? '<button class="tr-detected btn btn-ghost btn-sm" data-lang="'+det+'">'+esc(t('tr_detected').replace('{lang}', detLabel))+'</button>' : '');
         result.querySelector('.tr-copy')?.addEventListener('click', ev => {
           try { navigator.clipboard && navigator.clipboard.writeText(r.translated); } catch {}
           const b = ev.currentTarget, old = b.innerHTML; b.textContent = '✓';
           setTimeout(() => { b.innerHTML = old; }, 1200);
         });
+        result.querySelector('.tr-detected')?.addEventListener('click', () => { fromSel.value = det; doTranslate(); });
       } else {
         result.innerHTML = '<div class="tr-error">'+esc((r && r.error) || t('tr_error'))+'</div>';
       }
@@ -1129,6 +1150,7 @@ function openLink(url, mode){
 
 // Health status dot (data already present on the link: health_status/health_code).
 function healthDot(link){
+  if(link._secHealth === false || link.health_check === false) return '';  // health-check disabled (section or link)
   const st = link.health_status;
   if(!st) return '';
   const color = st==='ok' ? '#3fb950' : st==='down' ? '#d29922' : st==='error' ? '#f85149' : 'var(--text3)';
@@ -1146,19 +1168,29 @@ async function apiBlob(path){
 // Resolve favicons via the portal proxy (privacy: the browser never calls Google directly).
 // On failure the initial fallback (title initials) stays visible.
 async function resolveFavicons(root){
-  const imgs = (root||document).querySelectorAll('img.link-favicon[data-fav]');
+  const imgs = [...(root||document).querySelectorAll('img.link-favicon[data-fav]')];
+  if(!imgs.length) return;
+  // Group by hostname and resolve each unique domain once, all in parallel
+  // (was a sequential await-loop = one round-trip per icon).
+  const byDom = new Map();
   for(const img of imgs){
     const url = img.getAttribute('data-fav');
     img.removeAttribute('data-fav');
     let dom; try { dom = new URL(url).hostname; } catch { continue; }
+    let grp = byDom.get(dom);
+    if(!grp){ grp = { url, imgs: [] }; byDom.set(dom, grp); }
+    grp.imgs.push(img);
+  }
+  await Promise.all([...byDom.entries()].map(async ([dom, grp]) => {
     try {
       let obj = _favCache.get(dom);
-      if(!obj){ obj = URL.createObjectURL(await apiBlob('/favicon?url='+encodeURIComponent(url))); _favCache.set(dom, obj); }
-      img.src = obj;
-      img.style.display = '';
-      const fb = img.nextElementSibling; if(fb) fb.style.display = 'none';
+      if(!obj){ obj = URL.createObjectURL(await apiBlob('/favicon?url='+encodeURIComponent(grp.url))); _favCache.set(dom, obj); }
+      for(const img of grp.imgs){
+        img.src = obj; img.style.display = '';
+        const fb = img.nextElementSibling; if(fb) fb.style.display = 'none';
+      }
     } catch { /* keep initials */ }
-  }
+  }));
 }
 
 function favicon(link) {
