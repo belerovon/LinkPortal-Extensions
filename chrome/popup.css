@@ -467,3 +467,11 @@ mark{background:rgba(78,127,242,0.25);color:var(--accent);border-radius:2px;padd
 .rss-wrap{display:flex;flex-direction:column;gap:10px;padding:4px 0}
 .rss-feed .rss-items{display:flex;flex-direction:column}
 .rss-item .rss-date{color:var(--text-dim);font-size:11px;margin-top:2px}
+
+/* F: RSS sort toggle + date view */
+.rss-sortbar{display:flex;gap:6px;padding:6px 2px 10px}
+.rss-sort-btn{flex:0 0 auto;font-size:11px;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:transparent;color:var(--text-dim);cursor:pointer}
+.rss-sort-btn.active{background:var(--accent,#2563eb);border-color:var(--accent,#2563eb);color:#fff}
+.rss-meta{display:flex;gap:8px;align-items:center;margin-top:2px;flex-wrap:wrap}
+.rss-meta .rss-date,.rss-meta .rss-source{color:var(--text-dim);font-size:11px;margin-top:0}
+.rss-meta .rss-source{font-weight:600}

@@ -3,6 +3,11 @@
 Alle nennenswerten Änderungen an der LinkPortal Browser-Extension (Chrome & Safari).
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/); Versionierung nach [SemVer](https://semver.org/).
 
+## [1.10.22] — 2026-06-24
+
+### Added
+- **RSS sortierbar.** Umschalter „Nach Datum / Nach Feed" in der RSS-Ansicht. „Nach Datum" führt alle Feeds zusammen und sortiert die Einträge absteigend nach Datum (mit Feed-Quelle je Eintrag); „Nach Feed" gruppiert wie bisher. Startwert kommt aus der Portal-Einstellung `rss_group_by`; das Umschalten nutzt einen kurzen Cache (kein Neuladen).
+
 ## [1.10.21] — 2026-06-24
 
 ### Changed

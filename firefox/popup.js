@@ -6,9 +6,10 @@
 // (Firefox/Safari) so `await chrome.*` works; on Chrome `browser` is undefined → native chrome.* (already promise-based in MV3).
 if (typeof browser !== 'undefined' && browser.runtime) { try { globalThis.chrome = browser; } catch (e) {} }
 
-const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.21';
+const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.22';
 const ALL_TAB = 'all'; // virtual tab showing all sections
 const RSS_TAB = 'rss'; // virtual tab showing the user's RSS feeds
+let _rssCache = null;  // cached RSS fetch for the RSS view (survives sort toggles, cleared on reload)
 const MAX_INACTIVE_DAYS = 30;
 
 // ── 403 Threshold: 3 failures within 5 minutes triggers logout ──
@@ -459,6 +460,7 @@ function applyData(data, lastActiveTab, startTab='last') {
 // ── Load data (cache-first) ──
 async function loadData(force=false) {
   showScreen('loading');
+  _rssCache = null;   // RSS view reflects freshly (re)loaded data
   $('cache-badge').style.display='none';
   if(!force) {
     const {cacheTime}=await chrome.storage.local.get(['cacheTime']);
@@ -714,50 +716,73 @@ function renderAllSections() {
   wireWidgets(content);
 }
 
-// F: RSS view — reads the user's feeds from /api/settings and fetches each via /api/rss.
-async function renderRss(){
-  const c = $('tab-content');
-  c.innerHTML = '<div class="rss-loading" style="padding:16px;color:var(--text-dim)">'+spin()+'</div>';
-  let feeds = [], maxItems = 8;
-  try { const s = await apiGet('/settings'); feeds = (s && s.rss_feeds) || []; maxItems = (s && s.rss_max_items) || 8; } catch {}
-  if(S.activeTab !== RSS_TAB) return;                       // user navigated away while loading
-  if(!feeds.length){
+// F: RSS view — feeds from /api/settings, content via /api/rss.
+// Sortable: grouped by feed, or merged and sorted by date (newest first).
+// Default mode comes from the portal preference rss_group_by; toggling reuses a short cache.
+function _rssItemHtml(it, withSource){
+  return '<a class="link-item rss-item" href="#" data-url="'+esc(it.link || '')+'">'
+    + '<div class="link-info"><div class="link-title">'+esc(it.title || it.link || '')+'</div>'
+    + '<div class="link-desc rss-meta">'
+      + (withSource && it._feed ? '<span class="rss-source">'+esc(it._feed)+'</span>' : '')
+      + (it.date ? '<span class="rss-date">'+esc(it.date)+'</span>' : '')
+    + '</div></div></a>';
+}
+
+function layoutRss(c, mode){
+  const results = (_rssCache && _rssCache.results) || [];
+  if(!results.length){
     c.innerHTML = '<div class="empty-tab"><div class="empty-icon">'+SVG.rss+'</div><p>'+esc(t('rss_empty'))+'</p></div>';
     return;
   }
-  c.innerHTML = '<div class="rss-wrap"></div>';
-  const wrap = c.querySelector('.rss-wrap');
-  // Create the feed blocks in order first (preserves feed order), then fetch all feeds
-  // in parallel (was one-by-one). Failed feeds are removed; if none remain, show empty state.
-  const blocks = feeds.map(f => {
-    const block = document.createElement('div');
-    block.className = 'section-block rss-feed';
-    block.innerHTML = '<div class="section-header">'+sectionIconHtml(SVG.rss)+'<span class="section-title">'+esc(f.title || f.url)+'</span></div>'
-      + '<div class="rss-items">'+spin()+'</div>';
-    wrap.appendChild(block);
-    return { f, block };
-  });
-  await Promise.all(blocks.map(async ({ f, block }) => {
-    const itemsEl = block.querySelector('.rss-items');
-    try {
-      const r = await apiGet('/rss?url='+encodeURIComponent(f.url));
-      if(!wrap.isConnected) return;                          // a newer render replaced this view
-      const items = ((r && r.items) || []).slice(0, maxItems);
-      if(!items.length){ itemsEl.innerHTML = '<div class="widget-empty">'+esc(t('widget_empty'))+'</div>'; return; }
-      itemsEl.innerHTML = items.map(it =>
-        '<a class="link-item rss-item" href="#" data-url="'+esc(it.link || '')+'">'
-        + '<div class="link-info"><div class="link-title">'+esc(it.title || it.link || '')+'</div>'
-        + (it.date ? '<div class="link-desc rss-date">'+esc(it.date)+'</div>' : '')
-        + '</div></a>').join('');
-      itemsEl.querySelectorAll('.rss-item').forEach(el =>
-        el.addEventListener('click', e => { e.preventDefault(); if(el.dataset.url) openLink(el.dataset.url, 'blank'); }));
-    } catch {
-      block.remove();   // Feed nicht ladbar -> ausblenden statt Fehlermeldung
-    }
-  }));
-  if(wrap.isConnected && S.activeTab === RSS_TAB && !wrap.childElementCount){
-    c.innerHTML = '<div class="empty-tab"><div class="empty-icon">'+SVG.rss+'</div><p>'+esc(t('rss_empty'))+'</p></div>';
+  const bar = '<div class="rss-sortbar">'
+    + '<button class="rss-sort-btn'+(mode==='date'?' active':'')+'" data-mode="date">'+esc(t('rss_by_date'))+'</button>'
+    + '<button class="rss-sort-btn'+(mode==='feed'?' active':'')+'" data-mode="feed">'+esc(t('rss_by_feed'))+'</button>'
+    + '</div>';
+  let body;
+  if(mode === 'date'){
+    const all = [];
+    for(const { f, items } of results)
+      for(const it of items) all.push({ ...it, _feed: f.title || f.url });
+    all.sort((a, b) => (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0));
+    body = all.length
+      ? '<div class="rss-flat">'+all.map(it => _rssItemHtml(it, true)).join('')+'</div>'
+      : '<div class="widget-empty">'+esc(t('widget_empty'))+'</div>';
+  } else {
+    body = '<div class="rss-wrap">'+results.map(({ f, items }) =>
+      '<div class="section-block rss-feed"><div class="section-header">'+sectionIconHtml(SVG.rss)
+      + '<span class="section-title">'+esc(f.title || f.url)+'</span></div>'
+      + '<div class="rss-items">'+(items.length ? items.map(it => _rssItemHtml(it, false)).join('')
+          : '<div class="widget-empty">'+esc(t('widget_empty'))+'</div>')+'</div></div>'
+    ).join('')+'</div>';
   }
+  c.innerHTML = bar + body;
+  c.querySelectorAll('.rss-item').forEach(el =>
+    el.addEventListener('click', e => { e.preventDefault(); if(el.dataset.url) openLink(el.dataset.url, 'blank'); }));
+  c.querySelectorAll('.rss-sort-btn').forEach(btn =>
+    btn.addEventListener('click', () => { c.dataset.rssSort = btn.dataset.mode; layoutRss(c, btn.dataset.mode); }));
+}
+
+async function renderRss(){
+  const c = $('tab-content');
+  if(!_rssCache || Date.now() - _rssCache.ts > 60000){      // refetch only if stale (cache survives toggles)
+    c.innerHTML = '<div class="rss-loading" style="padding:16px;color:var(--text-dim)">'+spin()+'</div>';
+    let feeds = [], maxItems = 8, groupBy = 'date';
+    try { const s = await apiGet('/settings'); feeds = (s && s.rss_feeds) || []; maxItems = (s && s.rss_max_items) || 8; groupBy = (s && s.rss_group_by) || 'date'; } catch {}
+    if(S.activeTab !== RSS_TAB) return;                       // navigated away while loading
+    if(!c.dataset.rssSort) c.dataset.rssSort = (groupBy === 'feed' ? 'feed' : 'date');
+    if(!feeds.length){
+      _rssCache = { results: [], ts: Date.now() };
+      c.innerHTML = '<div class="empty-tab"><div class="empty-icon">'+SVG.rss+'</div><p>'+esc(t('rss_empty'))+'</p></div>';
+      return;
+    }
+    const results = await Promise.all(feeds.map(async f => {
+      try { const r = await apiGet('/rss?url='+encodeURIComponent(f.url)); return { f, items: ((r && r.items) || []).slice(0, maxItems) }; }
+      catch { return null; }                                  // failed feed -> dropped
+    }));
+    if(S.activeTab !== RSS_TAB) return;
+    _rssCache = { results: results.filter(Boolean), ts: Date.now() };
+  }
+  layoutRss(c, c.dataset.rssSort || 'date');
 }
 
 // ── Render tab content ──
