@@ -3,6 +3,14 @@
 Alle nennenswerten Änderungen an der LinkPortal Browser-Extension (Chrome & Safari).
 Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/); Versionierung nach [SemVer](https://semver.org/).
 
+## [1.10.23] — 2026-06-24
+
+### Added
+- **Aktuelle Seite als Link speichern (B).** Der „+ Link"-Dialog wird beim Öffnen mit URL und Titel der gerade aktiven Browser-Seite vorbefüllt (nur bei http/https; Felder bleiben editierbar, Sektionsauswahl über alle bearbeitbaren Sektionen wie gehabt). Damit ist die aktuelle Seite mit zwei Klicks im Portal gespeichert.
+
+### Fixed
+- **Bearbeiten setzte Link-Eigenschaften zurück.** Beim Speichern eines bearbeiteten Links wurden `open_mode`, `sort_order`, `health_check` und `logo_icon` nicht mitgesendet und vom Portal auf Standardwerte zurückgesetzt (z. B. Öffnen-im-selben-Tab und deaktivierter Health-Check gingen verloren). Diese Felder werden jetzt aus dem bestehenden Link übernommen.
+
 ## [1.10.22] — 2026-06-24
 
 ### Added

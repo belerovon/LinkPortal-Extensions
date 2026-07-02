@@ -6,7 +6,7 @@
 // (Firefox/Safari) so `await chrome.*` works; on Chrome `browser` is undefined → native chrome.* (already promise-based in MV3).
 if (typeof browser !== 'undefined' && browser.runtime) { try { globalThis.chrome = browser; } catch (e) {} }
 
-const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.22';
+const VERSION = (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '1.10.23';
 const ALL_TAB = 'all'; // virtual tab showing all sections
 const RSS_TAB = 'rss'; // virtual tab showing the user's RSS feeds
 let _rssCache = null;  // cached RSS fetch for the RSS view (survives sort toggles, cleared on reload)
@@ -1495,7 +1495,9 @@ function hilite(t2,q){return esc(t2).replace(new RegExp('('+escRx(q)+')','gi'),'
 // ══════════════════════════════════════════
 // LINK CRUD
 // ══════════════════════════════════════════
+let _dlgEditLink = null;   // link being edited (preserves open_mode/sort_order/health_check on save)
 function openLinkDialog(link, tabId) {
+  _dlgEditLink = link || null;
   const secSel=$('dlg-sec'); secSel.innerHTML='';
   let hasOptions=false;
   for(const tab of S.tabs){
@@ -1523,6 +1525,15 @@ function openLinkDialog(link, tabId) {
   $('dlg-sec-field').style.display = link?'none':'';
   $('dlg-backdrop').style.display='flex';
   $('dlg-url').focus();
+  // B: when adding, prefill with the current page (activeTab; fill only while fields are still empty)
+  if(!link && typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.query){
+    chrome.tabs.query({active:true, currentWindow:true}, tabs => {
+      const tb = tabs && tabs[0];
+      if(!tb || !tb.url || !/^https?:/i.test(tb.url)) return;   // skip chrome://, about:, file:
+      const u=$('dlg-url'), ti=$('dlg-title-inp');
+      if(u && !u.value.trim()){ u.value = tb.url; if(ti && !ti.value.trim() && tb.title) ti.value = tb.title; ti && ti.focus(); }
+    });
+  }
 }
 function closeLinkDialog(){$('dlg-backdrop').style.display='none';}
 
@@ -1539,7 +1550,16 @@ async function saveLinkDialog() {
   $('dlg-save').disabled=true;
   try {
     const body={url,title,description:desc||null,logo_url:logo||null};
-    if(isEdit) await apiPut('/links/'+linkId,body);
+    if(isEdit){
+      // Preserve fields the dialog doesn't expose — otherwise LinkIn defaults would
+      // reset open_mode to "blank", sort_order to 0 and health_check to true on every edit.
+      const l=_dlgEditLink||{};
+      body.open_mode   = l.open_mode || 'blank';
+      body.sort_order  = Number.isFinite(l.sort_order) ? l.sort_order : 0;
+      body.health_check= l.health_check !== false;
+      body.logo_icon   = l.logo_icon || null;
+      await apiPut('/links/'+linkId,body);
+    }
     else await apiPost('/sections/'+secId+'/links',body);
     closeLinkDialog();
     applyData(await fetchFromApi(), S.activeTab, 'last'); // preserve active tab on CRUD
